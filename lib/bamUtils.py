@@ -568,11 +568,10 @@ def bam2Fastq(bamFile,paired=False):
     Can also create two FASTQ files for paired-end sequences, but must be sorted first.
     """
     bamPrefix = get_mappedFile_prefix(bamFile)
-    fastq = bamPrefix + '.fastq'
-    read1 = bamPrefix + '.read1.fastq'
-    read2 = bamPrefix + '.read2.fastq'
 
     if paired is True:
+        read1 = bamPrefix + '.read1.fastq'
+        read2 = bamPrefix + '.read2.fastq'
         sort=subprocess.Popen("samtools sort -n %s %s.qsort" % (bamfile, bamPrefix),stdout=subprocess.PIPE, shell=True)
         stdout, stderr = sort.communicate()
         if stderr:
@@ -584,6 +583,7 @@ def bam2Fastq(bamFile,paired=False):
             raise ValueError('bedtools bamtofastq -i says: %s' % stderr)
         return(read1, read2)
     else: 
+        fastq = bamPrefix + '.fastq'
         p=subprocess.Popen("bedtools bamtofastq -i %s -fq %s" % (bamfile, fastq),stdout=subprocess.PIPE, shell=True)
         stdout, stderr = p.communicate()
         if stderr:
