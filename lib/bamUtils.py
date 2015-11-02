@@ -55,8 +55,8 @@ def name_sort_bam(bamFile,out_q=None):
     produce a sorted bam file for the bam (bamFile)
     """
     SUB = 'name_sort_bam'
-    bamFile_name_sorted_preifx = bamFile.replace('.bam','_namesorted')
-    bamFile_name_sorted        = bamFile_name_sorted_preifx + '.bam'
+    bamFile_name_sorted_prefix = bamFile.replace('.bam','_namesorted')
+    bamFile_name_sorted        = bamFile_name_sorted_prefix + '.bam'
     if os.path.exists(bamFile_name_sorted):
         print '[%s]: Bam file %s already name sorted ' % (SUB,bamFile)
         if out_q:
@@ -64,7 +64,7 @@ def name_sort_bam(bamFile,out_q=None):
         return bamFile_name_sorted
     else:
         print '[%s]: Name sorting bam file %s' % (SUB,bamFile)
-        args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_preifx]
+        args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_prefix]
         return_code = subprocess.check_call(args) 
         if return_code == 0:
             print '[%s]: Created name sorted bam for %s' % (SUB,os.path.basename(bamFile))
@@ -76,8 +76,16 @@ def name_sort_bam(bamFile,out_q=None):
             if out_q:
                 out_q.put(False)
             
+def parallel_sort_bam(bamFiles,parallel =1,out_q=None):
+    """
+    Taking a bamFile as input
+    produce a sorted bam file for the bam (bamFile)
+    """
+    
+    sort=subprocess.Popen("echo %s | xargs -I{} -n1 -P %i python -c 'import bamUtils; bamUtils.name_sort_bam(\{\},out_q)'" % (bamFiles,parallel),stdout=subprocess.PIPE, shell=True)
+    stdout, stderr = sort.communicate()
 
-
+    
 def coordinate_sort_bam(bamFile):
     """
     Taking a bamFile as input
@@ -551,9 +559,10 @@ def bam_to_fastq(bamFile, paired=False,**kwargs):
     bamPrefix = get_mappedFile_prefix(bamFile)
 
     if paired is True:
+        sorted_bam = name_sort_bam(bamFile)
         read1 = bamPrefix + '_read1.fastq'
         read2 = bamPrefix + '_read2.fastq'
-        pybedtools.BedTool.bam_to_fastq(bamFile,fq=read1,fq2=read2,**kwargs)
+        pybedtools.BedTool.bam_to_fastq(sorted_bam,fq=read1,fq2=read2,**kwargs)
         return(read1,read2)
     else:
         fastq = bamPrefix + '.fastq'
@@ -589,7 +598,6 @@ def bam2Fastq(bamFile,paired=False):
         if stderr:
             raise ValueError('bedtools bamtofastq says: %s' % stderr)
         return(fastq)
-
 
 
 def get_strand_for_RNA_Seq_read(read,lib_protocol):
