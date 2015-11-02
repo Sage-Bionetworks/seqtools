@@ -562,21 +562,26 @@ def bam_to_fastq(bamFile, paired=False,**kwargs):
 
 
 def bam2Fastq(bamFile,paired=False):
+    """
+    Bam to Fastq using bedtools - has paired functionality as well. 
+    """
+    bamPrefix = get_mappedFile_prefix(bamFile)
+    fastq = bamPrefix + '.fastq'
+    read1 = bamPrefix + '.read1.fastq'
+    read2 = bamPrefix + '.read2.fastq'
+
     if paired is True:
         sort=subprocess.Popen("samtools sort -n %s %s.qsort" % (bamfile, bamPrefix),stdout=subprocess.PIPE, shell=True)
         stdout, stderr = sort.communicate()
         if stderr:
-            raise ValueError('samtools sort says: %s.qsort.bam' % stderr)
-        p=subprocess.Popen('bedtools bamtofastq -i %s \
-                      -fq %s.read1.fastq \
-                      -fq2 %s.read2.fastq' % (bamPrefix,bamPrefix,bamPrefix),,stdout=subprocess.PIPE, shell=True)
+            raise ValueError('samtools sort says: %s' % stderr)
+
+        p=subprocess.Popen('bedtools bamtofastq -i %s.qsort.bam -fq %s -fq2 %s' % (bamPrefix,read1,read2),stdout=subprocess.PIPE, shell=True)
         stdout, stderr = p.communicate()
         if stderr:
             raise ValueError('bedtools bamtofastq -i says: %s' % stderr)
-        return("%s.read1.fastq" % bamPrefix, "%s.read2.fastq" % bamPrefix)
+        return(read1, read2)
     else: 
-        bamPrefix = get_mappedFile_prefix(bamFile)
-        fastq = bamPrefix + '.fastq'
         p=subprocess.Popen("bedtools bamtofastq -i %s -fq %s" % (bamfile, fastq),stdout=subprocess.PIPE, shell=True)
         stdout, stderr = p.communicate()
         if stderr:
