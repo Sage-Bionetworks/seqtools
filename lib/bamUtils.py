@@ -563,7 +563,9 @@ def bam_to_fastq(bamFile, paired=False,**kwargs):
 
 def bam2Fastq(bamFile,paired=False):
     """
-    Bam to Fastq using bedtools - has paired functionality as well. 
+    Bam to Fastq using bedtools:
+    bedtools bamtofastq is a conversion utility for extracting FASTQ records from sequence alignments in BAM format. 
+    Can also create two FASTQ files for paired-end sequences, but must be sorted first.
     """
     bamPrefix = get_mappedFile_prefix(bamFile)
     fastq = bamPrefix + '.fastq'
