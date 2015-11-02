@@ -561,28 +561,27 @@ def bam_to_fastq(bamFile, paired=False,**kwargs):
         return(fastq)
 
 
-def bam2Fastq(bamFile,paried=False):
-
-    bamPrefix = get_mappedFile_prefix(bamFile)
-    fastq = bamPrefix + '.fastq'
-    p=subprocess.Popen("bedtools bamtofastq -i %s -fq %s" % (bamfile, fastq),stdout=subprocess.PIPE, shell=True)
-    stdout, stderr = p.communicate()
-    if stderr:
-        raise ValueError('bedtools bamtofastq says: %s' % stderr)
-
-    return(fastq)
-
-    #if paired is True:
-     #   sort=subprocess.Popen("samtools sort -n aln.bam aln.qsort" % (bamfile, fastq),stdout=subprocess.PIPE, shell=True)
-
-        #read1 = bamPrefix + '_read1.fastq'
-        #read2 = bamPrefix + '_read2.fastq'
-    #    pybedtools.BedTool.bam_to_fastq(bamFile,fq=read1,fq2=read2,**kwargs)
-    #    return(read1,read2)
-    #else:
-    #    fastq = bamPrefix + '.fastq'
-    #    pybedtools.BedTool.bam_to_fastq(bamFile,fq=fastq,**kwargs)
-    #    return(fastq)
+def bam2Fastq(bamFile,paired=False):
+    if paired is True:
+        sort=subprocess.Popen("samtools sort -n %s %s.qsort" % (bamfile, bamPrefix),stdout=subprocess.PIPE, shell=True)
+        stdout, stderr = sort.communicate()
+        if stderr:
+            raise ValueError('samtools sort says: %s.qsort.bam' % stderr)
+        p=subprocess.Popen('bedtools bamtofastq -i %s \
+                      -fq %s.read1.fastq \
+                      -fq2 %s.read2.fastq' % (bamPrefix,bamPrefix,bamPrefix),,stdout=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if stderr:
+            raise ValueError('bedtools bamtofastq -i says: %s' % stderr)
+        return("%s.read1.fastq" % bamPrefix, "%s.read2.fastq" % bamPrefix)
+    else: 
+        bamPrefix = get_mappedFile_prefix(bamFile)
+        fastq = bamPrefix + '.fastq'
+        p=subprocess.Popen("bedtools bamtofastq -i %s -fq %s" % (bamfile, fastq),stdout=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if stderr:
+            raise ValueError('bedtools bamtofastq says: %s' % stderr)
+        return(fastq)
 
 
 
