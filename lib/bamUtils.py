@@ -68,7 +68,6 @@ def name_sort_bam(bamFile,parallel=F, threads = 2,out_q=None):
             args = ['sambamba', 'sort','-n','t',threads,'-o',bamFile_name_sorted,bamFile]
         else:
             args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_prefix]
-            
         return_code = subprocess.check_call(args)  
         if return_code == 0:
             print '[%s]: Created name sorted bam for %s' % (SUB,os.path.basename(bamFile))
