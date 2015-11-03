@@ -49,7 +49,7 @@ def index_bam(bamFile):
             print '[%s]: Created index for %s' % (SUB,os.path.basename(bamFile))
 
 
-def name_sort_bam(bamFile,out_q=None):
+def name_sort_bam(bamFile,parallel=F, threads = 2,out_q=None):
     """
     Taking a bamFile as input
     produce a sorted bam file for the bam (bamFile)
@@ -64,8 +64,12 @@ def name_sort_bam(bamFile,out_q=None):
         return bamFile_name_sorted
     else:
         print '[%s]: Name sorting bam file %s' % (SUB,bamFile)
-        args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_prefix]
-        return_code = subprocess.check_call(args) 
+        if parallel:
+            args = ['sambamba', 'sort','-n','t',threads,'-o',bamFile_name_sorted,bamFile]
+        else:
+            args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_prefix]
+            
+        return_code = subprocess.check_call(args)  
         if return_code == 0:
             print '[%s]: Created name sorted bam for %s' % (SUB,os.path.basename(bamFile))
             if out_q:
@@ -76,15 +80,6 @@ def name_sort_bam(bamFile,out_q=None):
             if out_q:
                 out_q.put(False)
             
-def parallel_sort_bam(bamFiles,parallel =1,out_q=None):
-    """
-    Taking a bamFile as input
-    produce a sorted bam file for the bam (bamFile)
-    """
-    
-    sort=subprocess.Popen("echo %s | xargs -I{} -n1 -P %i python -c 'import bamUtils; bamUtils.name_sort_bam(\{\},out_q)'" % (bamFiles,parallel),stdout=subprocess.PIPE, shell=True)
-    stdout, stderr = sort.communicate()
-
     
 def coordinate_sort_bam(bamFile):
     """
