@@ -49,7 +49,7 @@ def index_bam(bamFile):
             print '[%s]: Created index for %s' % (SUB,os.path.basename(bamFile))
 
 
-def name_sort_bam(bamFile,parallel=F, threads = 2,out_q=None):
+def name_sort_bam(bamFile,parallel=False, threads = 2,out_q=None):
     """
     Taking a bamFile as input
     produce a sorted bam file for the bam (bamFile)
@@ -65,9 +65,10 @@ def name_sort_bam(bamFile,parallel=F, threads = 2,out_q=None):
     else:
         print '[%s]: Name sorting bam file %s' % (SUB,bamFile)
         if parallel:
-            args = ['sambamba', 'sort','-n','t',threads,'-o',bamFile_name_sorted,bamFile]
+            args = ['sambamba','sort','-n','-t',str(threads),'-o',bamFile_name_sorted,bamFile]
         else:
             args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_prefix]
+
         return_code = subprocess.check_call(args)  
         if return_code == 0:
             print '[%s]: Created name sorted bam for %s' % (SUB,os.path.basename(bamFile))
@@ -575,12 +576,9 @@ def bam2Fastq(bamFile,paired=False):
     if paired is True:
         read1 = bamPrefix + '.read1.fastq'
         read2 = bamPrefix + '.read2.fastq'
-        sort=subprocess.Popen("samtools sort -n %s %s.qsort" % (bamfile, bamPrefix),stdout=subprocess.PIPE, shell=True)
-        stdout, stderr = sort.communicate()
-        if stderr:
-            raise ValueError('samtools sort says: %s' % stderr)
+        sorted_bam = name_sort_bam(bamFile)
 
-        p=subprocess.Popen('bedtools bamtofastq -i %s.qsort.bam -fq %s -fq2 %s' % (bamPrefix,read1,read2),stdout=subprocess.PIPE, shell=True)
+        p=subprocess.Popen('bedtools bamtofastq -i %s -fq %s -fq2 %s' % (sorted_bam,read1,read2),stdout=subprocess.PIPE, shell=True)
         stdout, stderr = p.communicate()
         if stderr:
             raise ValueError('bedtools bamtofastq -i says: %s' % stderr)
