@@ -100,7 +100,25 @@ def coordinate_sort_bam(bamFile):
             return bamFile_coordinate_sorted
 
 
+def make_bam_biodalliance_friendly(bamFile,fai_file=None,delete_sam=True):
+    #Create sam file from BAM
+    bamFile_sam = bamFile.replace('.bam','.sam')
 
+    args = ['samtools','view',bamFile, '-o', bamFile_sam]
+    return_code = subprocess.check_call(args) 
+    if return_code == 0:
+        print '[%s]: Created sam file for %s' % (bamFile_sam,os.path.basename(bamFile))
+    #Get rid of all the chr in sam file
+    noChr = ['sed', '-i','', 's/chr//g',bamFile_sam]
+    nochr_return = subprocess.check_call(args) 
+    if nochr_return == 0:
+        print '[%s]: Successfully sorted' % (bamFile_sam)
+    #Convert sam back to bam
+    bam = sam_to_bam(bamFile_sam, fai_file)
+    if delete_sam:
+        os.remove(bamFile_sam)
+        print '%s deleted' % bamFile_sam
+    return bam
 
 
 def get_coverage_of_a_bam_file(bamFile,chr=None):
