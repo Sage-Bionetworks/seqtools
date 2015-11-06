@@ -100,7 +100,11 @@ def coordinate_sort_bam(bamFile):
             return bamFile_coordinate_sorted
 
 
-def make_bam_biodalliance_friendly(bamFile,delete_original=False):
+def remove_chr(bamFile,delete_original=False):
+    """
+    For bam files to be biodalliance friendly, chromosome numbers MUST only
+    be numbers. (eg. chr1 ---> 1) This function removes the chr
+    """
     header = bamFile.replace('.bam','_header.sam')
     bamFile_sam = bamFile.replace('.bam','_nochr.bam')
     #Get header of bam file
