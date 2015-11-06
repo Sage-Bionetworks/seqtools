@@ -100,7 +100,7 @@ def coordinate_sort_bam(bamFile):
             return bamFile_coordinate_sorted
 
 
-def make_bam_biodalliance_friendly(bamFile,fai_file=None,delete_original=False):
+def make_bam_biodalliance_friendly(bamFile,delete_original=False):
     header = bamFile.replace('.bam','_header.sam')
     bamFile_sam = bamFile.replace('.bam','_nochr.bam')
     #Get header of bam file
