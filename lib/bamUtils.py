@@ -132,6 +132,40 @@ def remove_chr(bamFile,delete_original=False):
     
     return bamFile_sam
 
+def get_percent_duplication(bamFile, picardPath = "/opt/picard"):
+    bamFile = coordinate_sort_bam(bamFile)
+    metrics = bamFile.replace('.bam','_metrics.txt')
+    output_duplicates = bamFile.replace('.bam','_duplicates.bam')
+    args = ['java', '-jar', os.path.join(picardPath,'dist/picard.jar'), 'MarkDuplicates', 'INPUT=', bamFile,'OUTPUT=',output_duplicates,'METRICS_FILE=', metrics]
+    return_code = subprocess.check_call(args) 
+    
+    if return_code == 0:
+        dups = pandas.read_table(metrics,skiprows=6)
+        percent = dups['PERCENT_DUPLICATION']
+        #os.remove(metrics)
+        os.remove(output_duplicates)
+        print percent
+        return metrics
+    else:
+        print "picard MarkDuplicates failed"
+
+
+
+def get_library_complexity(bamFile, picardPath = "/opt/picard"):
+    bamFile = coordinate_sort_bam(bamFile)
+    metrics = bamFile.replace('.bam','_metrics.txt')
+    args = ['java', '-jar', os.path.join(picardPath,'dist/picard.jar'), 'EstimateLibraryComplexity', 'INPUT=', bamFile,'OUTPUT=',metrics]
+    return_code = subprocess.check_call(args) 
+    if return_code == 0:
+        dups = pandas.read_table(metrics,skiprows=6)
+        percent = dups['PERCENT_DUPLICATION'][0]
+        #os.remove(metrics)
+        print percent
+        return metrics
+    else:
+        print "picard EstimateLibraryComplexity failed"
+
+
 
 def get_coverage_of_a_bam_file(bamFile,chr=None):
     '''
