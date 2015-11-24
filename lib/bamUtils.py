@@ -129,7 +129,6 @@ def remove_chr(bamFile,delete_original=False):
         os.rename(bamFile_sam,bamFile)
         bamFile_sam = bamFile
         print 'Deleted original (%s) and renamed %s to %s' % (bamFile, bamFile_sam, bamFile)
-    
     return bamFile_sam
 
 def get_percent_duplication(bamFile, picardPath = "/opt/picard"):
@@ -138,7 +137,6 @@ def get_percent_duplication(bamFile, picardPath = "/opt/picard"):
     output_duplicates = bamFile.replace('.bam','_duplicates.bam')
     args = ['java', '-jar', os.path.join(picardPath,'dist/picard.jar'), 'MarkDuplicates', 'INPUT=', bamFile,'OUTPUT=',output_duplicates,'METRICS_FILE=', metrics]
     return_code = subprocess.check_call(args) 
-    
     if return_code == 0:
         dups = pandas.read_table(metrics,skiprows=6)
         percent = dups['PERCENT_DUPLICATION']
@@ -153,7 +151,7 @@ def get_percent_duplication(bamFile, picardPath = "/opt/picard"):
 
 def get_library_complexity(bamFile, picardPath = "/opt/picard"):
     bamFile = coordinate_sort_bam(bamFile)
-    metrics = bamFile.replace('.bam','_metrics.txt')
+    metrics = bamFile.replace('.bam','_compmetrics.txt')
     args = ['java', '-jar', os.path.join(picardPath,'dist/picard.jar'), 'EstimateLibraryComplexity', 'INPUT=', bamFile,'OUTPUT=',metrics]
     return_code = subprocess.check_call(args) 
     if return_code == 0:
