@@ -49,14 +49,14 @@ def index_bam(bamFile):
             print '[%s]: Created index for %s' % (SUB,os.path.basename(bamFile))
 
 
-def name_sort_bam(bamFile,out_q=None):
+def name_sort_bam(bamFile,parallel=False, threads = 2,out_q=None):
     """
     Taking a bamFile as input
     produce a sorted bam file for the bam (bamFile)
     """
     SUB = 'name_sort_bam'
-    bamFile_name_sorted_preifx = bamFile.replace('.bam','_namesorted')
-    bamFile_name_sorted        = bamFile_name_sorted_preifx + '.bam'
+    bamFile_name_sorted_prefix = bamFile.replace('.bam','_namesorted')
+    bamFile_name_sorted        = bamFile_name_sorted_prefix + '.bam'
     if os.path.exists(bamFile_name_sorted):
         print '[%s]: Bam file %s already name sorted ' % (SUB,bamFile)
         if out_q:
@@ -64,8 +64,12 @@ def name_sort_bam(bamFile,out_q=None):
         return bamFile_name_sorted
     else:
         print '[%s]: Name sorting bam file %s' % (SUB,bamFile)
-        args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_preifx]
-        return_code = subprocess.check_call(args) 
+        if parallel:
+            args = ['sambamba','sort','-n','-t',str(threads),'-o',bamFile_name_sorted,bamFile]
+        else:
+            args = ['samtools','sort','-n',bamFile,bamFile_name_sorted_prefix]
+
+        return_code = subprocess.check_call(args)  
         if return_code == 0:
             print '[%s]: Created name sorted bam for %s' % (SUB,os.path.basename(bamFile))
             if out_q:
@@ -76,8 +80,7 @@ def name_sort_bam(bamFile,out_q=None):
             if out_q:
                 out_q.put(False)
             
-
-
+    
 def coordinate_sort_bam(bamFile):
     """
     Taking a bamFile as input
@@ -97,6 +100,68 @@ def coordinate_sort_bam(bamFile):
             return bamFile_coordinate_sorted
 
 
+def remove_chr(bamFile,delete_original=False):
+    """
+    For bam files to be biodalliance friendly, chromosome numbers MUST only
+    be numbers. (eg. chr1 ---> 1) This function removes the chr
+    """
+    header = bamFile.replace('.bam','_header.sam')
+    bamFile_sam = bamFile.replace('.bam','_nochr.bam')
+    #Get header of bam file
+    args = ['samtools','view','-H',bamFile, '-o', header]
+    return_code = subprocess.check_call(args) 
+    if return_code == 0:
+        print '[%s]: Extracted header for %s' % (header,os.path.basename(bamFile))
+    #Get rid of all the chr in header file
+    noChr = ['sed', '-i', 's/chr//g',header]
+    nochr_return = subprocess.check_call(noChr) 
+    if nochr_return == 0:
+        print '[%s]: Removed "chr"' % (header)
+    #Rehead bam file so no "chr"
+    rehead = ['samtools', 'reheader', header, bamFile,'-o' bamFile_sam]
+    rehead_return = subprocess.check_call(rehead) 
+    if rehead_return == 0:
+        print '[%s]: Created bam file without "chr"' % (bamFile_sam)
+    os.remove(header)
+    #If the original bam is not needed, delete original and rename new bam to the original name
+    if delete_original:
+        os.remove(bamFile)
+        os.rename(bamFile_sam,bamFile)
+        bamFile_sam = bamFile
+        print 'Deleted original (%s) and renamed %s to %s' % (bamFile, bamFile_sam, bamFile)
+    return bamFile_sam
+
+def get_percent_duplication(bamFile, picardPath = "/opt/picard"):
+    bamFile = coordinate_sort_bam(bamFile)
+    metrics = bamFile.replace('.bam','_metrics.txt')
+    output_duplicates = bamFile.replace('.bam','_duplicates.bam')
+    args = ['java', '-jar', os.path.join(picardPath,'dist/picard.jar'), 'MarkDuplicates', 'INPUT=', bamFile,'OUTPUT=',output_duplicates,'METRICS_FILE=', metrics]
+    return_code = subprocess.check_call(args) 
+    if return_code == 0:
+        dups = pandas.read_table(metrics,skiprows=6)
+        percent = dups['PERCENT_DUPLICATION']
+        #os.remove(metrics)
+        os.remove(output_duplicates)
+        print percent
+        return metrics
+    else:
+        print "picard MarkDuplicates failed"
+
+
+
+def get_library_complexity(bamFile, picardPath = "/opt/picard"):
+    bamFile = coordinate_sort_bam(bamFile)
+    metrics = bamFile.replace('.bam','_compmetrics.txt')
+    args = ['java', '-jar', os.path.join(picardPath,'dist/picard.jar'), 'EstimateLibraryComplexity', 'INPUT=', bamFile,'OUTPUT=',metrics]
+    return_code = subprocess.check_call(args) 
+    if return_code == 0:
+        dups = pandas.read_table(metrics,skiprows=6)
+        percent = dups['PERCENT_DUPLICATION'][0]
+        #os.remove(metrics)
+        print percent
+        return metrics
+    else:
+        print "picard EstimateLibraryComplexity failed"
 
 
 
@@ -551,9 +616,10 @@ def bam_to_fastq(bamFile, paired=False,**kwargs):
     bamPrefix = get_mappedFile_prefix(bamFile)
 
     if paired is True:
+        sorted_bam = name_sort_bam(bamFile)
         read1 = bamPrefix + '_read1.fastq'
         read2 = bamPrefix + '_read2.fastq'
-        pybedtools.BedTool.bam_to_fastq(bamFile,fq=read1,fq2=read2,**kwargs)
+        pybedtools.BedTool.bam_to_fastq(sorted_bam,fq=read1,fq2=read2,**kwargs)
         return(read1,read2)
     else:
         fastq = bamPrefix + '.fastq'
@@ -561,8 +627,31 @@ def bam_to_fastq(bamFile, paired=False,**kwargs):
         return(fastq)
 
 
+def bam2Fastq(bamFile,paired=False):
+    """
+    Bam to Fastq using bedtools:
+    bedtools bamtofastq is a conversion utility for extracting FASTQ records from sequence alignments in BAM format. 
+    Can also create two FASTQ files for paired-end sequences, but must be sorted first.
+    """
+    bamPrefix = get_mappedFile_prefix(bamFile)
 
+    if paired is True:
+        read1 = bamPrefix + '.read1.fastq'
+        read2 = bamPrefix + '.read2.fastq'
+        sorted_bam = name_sort_bam(bamFile)
 
+        p=subprocess.Popen('bedtools bamtofastq -i %s -fq %s -fq2 %s' % (sorted_bam,read1,read2),stdout=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if stderr:
+            raise ValueError('bedtools bamtofastq -i says: %s' % stderr)
+        return(read1, read2)
+    else: 
+        fastq = bamPrefix + '.fastq'
+        p=subprocess.Popen("bedtools bamtofastq -i %s -fq %s" % (bamfile, fastq),stdout=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if stderr:
+            raise ValueError('bedtools bamtofastq says: %s' % stderr)
+        return(fastq)
 
 
 def get_strand_for_RNA_Seq_read(read,lib_protocol):
